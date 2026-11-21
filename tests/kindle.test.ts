@@ -37,6 +37,14 @@ describe("Kindle parser", () => {
     expect(entries[7]).toMatchObject({ location: "", content: "No location content" });
     expect(entries[8].addedAt).toBeUndefined();
   });
+  it("rejects impossible calendar dates instead of rolling them over", () => {
+    const block = (date: string) => parseKindleClippings(`Book (Author)\n- Your Highlight on Location 1 | Added on ${date}\n\nText`)[0].addedAt;
+    expect(block("Friday, February 30, 2024 10:00:00 PM")).toBeUndefined();
+    expect(block("Friday, 31 April 2024 22:00:00")).toBeUndefined();
+    expect(block("Friday, 1 March 2024 25:00:00")).toBeUndefined();
+    expect(block("Thursday, February 29, 2024 10:00:00 PM")).toEqual(new Date(2024, 1, 29, 22));
+    expect(parseKindleClippings("書 (作者)\n- 您在位置 #1 的标注 | 添加于 2023年2月29日星期三 下午9:00:00\n\n文字")[0].addedAt).toBeUndefined();
+  });
   it("skips malformed blocks and empty input", () => {
     expect(parseKindleClippings("")).toEqual([]);
     expect(parseKindleClippings("Broken\n==========\nTitle\n- Unrecognized header")).toEqual([]);

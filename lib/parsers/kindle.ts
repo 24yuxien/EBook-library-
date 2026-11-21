@@ -8,18 +8,44 @@ export interface KindleEntry {
   content: string;
 }
 
+const MONTHS = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
+
+function buildDate(y: number, m: number, d: number, h: number, min: number, s: number): Date | undefined {
+  const date = new Date(y, m - 1, d, h, min, s);
+  const valid = date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d
+    && date.getHours() === h && date.getMinutes() === min && date.getSeconds() === s;
+  return valid ? date : undefined;
+}
+
+function to24h(hour: number, period?: string): number | undefined {
+  if (!period) return hour;
+  if (hour < 1 || hour > 12) return undefined;
+  return hour % 12 + (/^(下午|pm)$/i.test(period) ? 12 : 0);
+}
+
 function parseDate(value: string): Date | undefined {
-  const chinese = value.match(/(\d{4})年(\d{1,2})月(\d{1,2})日.*?(上午|下午)?\s*(\d{1,2}):(\d{2}):(\d{2})/);
-  let date: Date;
+  const time = String.raw`(上午|下午|AM|PM)?\s*(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)?`;
+  const chinese = value.match(new RegExp(String.raw`(\d{4})年(\d{1,2})月(\d{1,2})日.*?` + time, "i"));
+  const us = value.match(new RegExp(String.raw`([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})\s+` + time, "i"));
+  const uk = value.match(new RegExp(String.raw`(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})\s+` + time, "i"));
+  let y: number, m: number, d: number, rest: string[];
   if (chinese) {
-    const [, y, m, d, period, h, min, s] = chinese;
-    let hour = Number(h);
-    if (period) hour = hour % 12 + (period === "下午" ? 12 : 0);
-    date = new Date(Number(y), Number(m) - 1, Number(d), hour, Number(min), Number(s));
+    [y, m, d] = chinese.slice(1, 4).map(Number);
+    rest = chinese.slice(4);
+  } else if (us || uk) {
+    const match = (us ?? uk)!;
+    const [monthName, day] = us ? [match[1], match[2]] : [match[2], match[1]];
+    m = MONTHS.indexOf(monthName.toLowerCase()) + 1;
+    d = Number(day);
+    y = Number(match[3]);
+    rest = match.slice(4);
   } else {
-    date = new Date(value.replace(/^[A-Za-z]+,\s*/, ""));
+    return undefined;
   }
-  return Number.isNaN(date.getTime()) ? undefined : date;
+  const [before, h, min, s, after] = rest;
+  const hour = to24h(Number(h), before ?? after);
+  if (!m || hour === undefined) return undefined;
+  return buildDate(y, m, d, hour, Number(min), Number(s));
 }
 
 export function parseKindleClippings(text: string): KindleEntry[] {
