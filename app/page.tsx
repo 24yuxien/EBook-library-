@@ -1,0 +1,1 @@
+export default function Home() { return <main className="min-h-screen bg-stone-50 p-12 text-stone-900"><h1 className="text-4xl font-semibold">BookVault 藏簡書房</h1><p className="mt-4">Your books, highlights, and reading journey in one place.</p></main>; }

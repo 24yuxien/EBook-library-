@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Platform {
+  kobo
+  kindle
+  readmoo
+  bookwalker
+  physical
+}
+
+enum ClippingType {
+  highlight
+  note
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  email     String   @unique
+  createdAt DateTime @default(now())
+  books     Book[]
+}
+
+model Book {
+  id         String           @id @default(uuid()) @db.Uuid
+  userId     String           @db.Uuid
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  author     String?
+  isbn       String?
+  platform   Platform
+  sourceKey  String
+  coverUrl   String?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  highlights Highlight[]
+  progress   ReadingProgress?
+
+  @@unique([userId, platform, sourceKey])
+  @@index([userId, platform])
+}
+
+model Highlight {
+  id            String       @id @default(uuid()) @db.Uuid
+  bookId        String       @db.Uuid
+  book          Book         @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  content       String
+  contentHash   String       @db.Char(64)
+  location      String       @default("")
+  type          ClippingType @default(highlight)
+  highlightedAt DateTime?
+  createdAt     DateTime     @default(now())
+
+  @@unique([bookId, location, contentHash])
+}
+
+model ReadingProgress {
+  id         String   @id @default(uuid()) @db.Uuid
+  bookId     String   @unique @db.Uuid
+  book       Book     @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  percentage Float    @default(0)
+  lastReadAt DateTime
+  updatedAt  DateTime @updatedAt
+}
